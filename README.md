@@ -24,7 +24,7 @@ flowchart LR
 
 The experiment compared 22 configurations using the same three validation rounds. Validation weeks span all 12 observed months; the final model is fitted on all 7,910 development targets. The selected gradient boosting model combines known target times, recent rentals, and past weather values/changes to adapt its estimates to the observed conditions. Notebook section 7.1 measures reliance on these input groups using development validation.
 
-### 2.1 Performance as an operational reference
+### 2.1 Prediction errors compared with the weekly mean
 
 **The model was closer to actual rentals than the weekly-mean rule in 239 of 384 hours (62.2%).** This supports its reference value for most operating hours in this test, beyond directly reusing matching historical counts.
 
@@ -33,7 +33,7 @@ The experiment compared 22 configurations using the same three validation rounds
 | Selected gradient boosting | 77.6% | 21.3% |
 | Mean of matching weekday/hour counts from the previous 1–4 weeks | 61.5% | 35.8% |
 
-Percentage error is the absolute prediction error divided by actual rentals for that hour. The 20% band is a descriptive reporting choice; model selection uses validation MAE.
+Percentage error is the absolute prediction error divided by actual rentals for that hour. The grouped bars compare hours within ±10%, ±20%, and ±30%, each out of all 384 test hours. For example, with 1,000 actual rentals, ±20% means a prediction between 800 and 1,200. These ranges describe results; model selection uses validation MAE.
 
 Actual rentals averaged about 675/hour. Mean absolute error was 85.25/hour for the model and 128.19/hour for the rule, a 33.5% reduction. This gives the count error its volume context.
 
@@ -41,7 +41,7 @@ Actual rentals averaged about 675/hour. Mean absolute error was 85.25/hour for t
 
 Development validation can train on months later than a held-out week; final testing uses a model fitted only on earlier targets. These results measure the stated periods.
 
-![Share of test hours within each relative-error level](reports/figures/performance.png)
+![Model and weekly mean: hours within ±10%, ±20%, and ±30% of actual rentals](reports/figures/performance.png)
 
 ## 3. Review the existing results
 

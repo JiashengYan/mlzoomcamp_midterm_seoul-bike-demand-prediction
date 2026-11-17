@@ -227,7 +227,7 @@ For each positive actual count, calculate absolute error / actual count. Averagi
 
 The low-volume group has a mean absolute error exceeding its mean actual count, and the model is closer on only four of those thirteen hours. MAPE is sensitive to small actual counts, as described in the [metric documentation](https://scikit-learn.org/stable/modules/generated/sklearn.metrics.mean_absolute_percentage_error.html). The stronger overall reference value and this limitation are both part of the result.
 
-Notebook section 8.1 computes the comparison table, hour-by-hour wins, volume groups, and [error-coverage curve](../reports/figures/performance.png) directly from its final-test predictions. The curve shows thresholds up to 100%, with every test hour retained in the denominator. Evidence covers the 16-day November test period; operational benefits and performance in other periods require separate evaluation.
+Notebook section 8.1 computes the comparison table, hour-by-hour wins, volume groups, and [grouped error-comparison bars](../reports/figures/performance.png) directly from its final-test predictions. The bars compare hours within ±10%, ±20%, and ±30% of actual rentals; each is labelled with its percentage and count out of all 384 test hours. Evidence covers the 16-day November test period; operational benefits and performance in other periods require separate evaluation.
 
 ### 7.2 Reports for detailed checks
 
