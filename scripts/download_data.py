@@ -1,7 +1,6 @@
 """Download the pinned original Seoul Bike CSV using only the standard library."""
 
 import csv
-import hashlib
 import io
 import sys
 from pathlib import Path
@@ -15,28 +14,21 @@ SOURCE_URL = (
     "seoul+bike+sharing+demand.zip"
 )
 CSV_FILENAME = "SeoulBikeData.csv"
-EXPECTED_SHA256 = "373339b71a8935d69e9af0abf26a70744632119862eeb3919efb389a7b749c60"
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 DESTINATION = PROJECT_ROOT / "data" / "raw" / CSV_FILENAME
 MAX_ARCHIVE_BYTES = 2 * 1024 * 1024
 
 
 def validate_csv(payload: bytes) -> tuple[int, int]:
-    """Verify that CSV bytes match the fixed source version and expected dimensions.
+    """Check that CSV bytes have the expected dimensions.
 
     Inputs:
         payload: Original CSV bytes decoded as latin-1 only for structural checks.
 
     Outputs:
-        A (row_count, column_count) tuple equal to (8760, 14). Raises ValueError for a
-        different hash or invalid row/column counts; writes no files.
+        A (row_count, column_count) tuple equal to (8760, 14). Raises ValueError for
+        invalid row/column counts; writes no files.
     """
-    actual_hash = hashlib.sha256(payload).hexdigest()
-    if actual_hash != EXPECTED_SHA256:
-        raise ValueError(
-            f"CSV SHA-256 mismatch: expected {EXPECTED_SHA256}, got {actual_hash}. "
-            "Verify the file and upstream version before making any changes."
-        )
     rows = list(csv.reader(io.StringIO(payload.decode("latin-1"))))
     if not rows or len(rows[0]) != 14 or len(rows) - 1 != 8760:
         raise ValueError("Unexpected CSV dimensions; expected 8760 rows and 14 columns.")
@@ -49,7 +41,7 @@ def main() -> int:
     """Download and verify the source CSV, or verify an existing local copy.
 
     Inputs:
-        No function arguments. Uses SOURCE_URL, DESTINATION, EXPECTED_SHA256, and the
+        No function arguments. Uses SOURCE_URL, DESTINATION, and the
             archive-size limit defined in this module.
 
     Outputs:
@@ -80,7 +72,6 @@ def main() -> int:
         print(action)
         print(f"File: {DESTINATION}")
         print(f"Shape: {row_count} rows x {column_count} columns")
-        print(f"SHA-256: {EXPECTED_SHA256}")
         return 0
     except (OSError, URLError, ValueError, BadZipFile, KeyError) as error:
         print(f"Data setup failed: {error}", file=sys.stderr)

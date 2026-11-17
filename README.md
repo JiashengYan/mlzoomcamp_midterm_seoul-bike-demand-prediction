@@ -60,14 +60,47 @@ For individual scores and settings, inspect [metrics.json](reports/metrics.json)
 
 **Prepare the environment once, then choose the notebook route to replay development or the batch route to generate a saved service model.** Both routes call the same project functions and use the same fixed protocol.
 
-Use Python 3.11 and [uv](https://docs.astral.sh/uv/getting-started/installation/). From the project root, run:
+The setup supports Windows PowerShell and Ubuntu bash. Run project commands from the project root (the directory containing `pyproject.toml`). Install [uv](https://docs.astral.sh/uv/getting-started/installation/) for your operating system first if `uv --version` is not recognized.
+
+**Windows — PowerShell** (`winget` is Windows-only):
 
 ~~~powershell
-python scripts/download_data.py
-uv sync --locked --python 3.11
+winget install --id astral-sh.uv -e
 ~~~
 
-The first command downloads or verifies the fixed CSV. The second installs the locked environment in .venv. Each `uv run` command activates that environment for its process, so a separate shell-activation step is unnecessary. To activate it manually in PowerShell, use `.\.venv\Scripts\Activate.ps1`; in bash, use `source .venv/bin/activate`.
+**Ubuntu — bash**:
+
+~~~bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+~~~
+
+If `curl` is unavailable, use `wget -qO- https://astral.sh/uv/install.sh | sh` instead. After installation, reopen your terminal so the updated PATH takes effect, then check `uv --version` and return to the project root.
+
+**Both platforms:** use these same commands to install Python 3.11, create the virtual environment, install the locked dependencies, and prepare the data. The training, testing, and service commands below also work in both PowerShell and bash. Create a separate `.venv` on each operating system; do not copy the Windows environment to Ubuntu.
+
+~~~sh
+uv python install 3.11
+uv sync --locked --python 3.11
+uv run --locked python scripts/download_data.py
+~~~
+
+`uv sync` creates `.venv` and installs the project and its development dependencies. The final command downloads or verifies the fixed CSV using that environment's Python. Each `uv run` command uses `.venv` for its process, so a separate shell-activation step is unnecessary.
+
+Optional manual activation in PowerShell:
+
+~~~powershell
+.\.venv\Scripts\Activate.ps1
+~~~
+
+If PowerShell blocks activation because script execution is disabled, continue using the `uv run` commands above; activation is optional.
+
+Optional manual activation on Ubuntu (bash):
+
+~~~bash
+source .venv/bin/activate
+~~~
+
+If data setup fails, check the error message: a missing `scripts/download_data.py` means you should return to the project root; `Data setup failed` with a connection or certificate error requires checking access to the UCI download URL printed by the script. The downloader uses only Python's standard library, so these network errors are not caused by missing project dependencies.
 
 ### 4.1 Replay development in the notebook
 
@@ -97,6 +130,10 @@ The expected selected configuration is gradient boosting with W2, with validatio
 ~~~powershell
 uv run --locked uvicorn seoul_bike.api:app --host 127.0.0.1 --port 8000
 ~~~
+
+Keep this terminal running. Open [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs) in your browser for the interactive API documentation, or [http://127.0.0.1:8000/health](http://127.0.0.1:8000/health) to check model readiness. The root URL (`http://127.0.0.1:8000/`) has no route and returns HTTP 404 with `{"detail":"Not Found"}`; this is expected. To make a prediction in `/docs`, expand `POST /predict`, click **Try it out**, enter `{"issued_at":"2018-11-16T17:00:00+09:00"}`, and click **Execute**. A 503 response means the model is unavailable: run section 4.2, then restart the service.
+
+Interactive replay accepts issue times from 2017-12-08 00:00 through 2018-11-30 22:00 (Asia/Seoul), including training-period trials. `used_in_training` and `evaluation_scope` distinguish those trials from held-out evaluation. The `/docs` request example uses a valid historical issue time instead of the current date; `/health` reports the loaded model's inclusive time range. Prediction responses include `actual_rentals` from the target-hour CSV row, `absolute_error` in rentals/hour, and `absolute_percentage_error` in percent (null when actual rentals are zero). `actual_operating` indicates whether the recorded target hour was operating. Actual values are looked up after prediction and are not model inputs; shutdown-hour comparisons do not measure normal-operation performance.
 
 ### 5.2 Start with Docker
 

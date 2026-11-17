@@ -178,6 +178,21 @@ def test_api_contract_and_batch_equivalence(raw, features):
     with TestClient(app) as client:
         assert client.get("/health").status_code == 200
         bundle = app.state.bundle
+        health = client.get("/health").json()
+        assert health["evaluation_issue_start"] == bundle["metadata"]["issue_start"]
+        assert health["issue_start"] == "2017-12-08T00:00:00+09:00"
+        for value in (health["issue_start"], health["issue_end"],
+                      "2018-10-16T17:00:00+09:00"):
+            trial = client.post("/predict", json={"issued_at": value})
+            assert trial.status_code == 200
+        october = client.post("/predict", json={
+            "issued_at": "2018-10-16T17:00:00+09:00"
+        }).json()
+        assert october["used_in_training"] is True
+        assert october["evaluation_scope"] == "training"
+        schema = client.get("/openapi.json").json()
+        example = schema["components"]["schemas"]["PredictionRequest"]["properties"]["issued_at"]["examples"][0]
+        assert client.post("/predict", json={"issued_at": example}).status_code == 200
         for issue in (ISSUE_START, ISSUE_START + pd.Timedelta(days=4),
                       pd.Timestamp(bundle["metadata"]["issue_end"])):
             response = client.post("/predict", json={"issued_at": issue.isoformat()})
@@ -185,8 +200,15 @@ def test_api_contract_and_batch_equivalence(raw, features):
             target = issue + pd.Timedelta(hours=1)
             expected = max(0, bundle["model"].predict(features.loc[[target], bundle["columns"]])[0])
             assert response.json()["predicted_rentals"] == pytest.approx(expected)
+            actual = int(raw.loc[target, "Rented Bike Count"])
+            assert response.json()["actual_rentals"] == actual
+            assert response.json()["absolute_error"] == pytest.approx(abs(expected - actual))
+            if actual:
+                assert response.json()["absolute_percentage_error"] == pytest.approx(
+                    100 * abs(expected - actual) / actual
+                )
         for value in ("2018-11-16T12:00:00", "2018-11-16T12:01:00+09:00",
-                      "2018-05-01T12:00:00+09:00", "2018-12-01T00:00:00+09:00"):
+                      "2017-12-07T23:00:00+09:00", "2018-12-01T00:00:00+09:00"):
             assert client.post("/predict", json={"issued_at": value}).status_code == 422
         assert client.post("/predict", json={"issued_at": ISSUE_START.isoformat(), "weather": {}}).status_code == 422
         original = app.state.raw
@@ -194,6 +216,16 @@ def test_api_contract_and_batch_equivalence(raw, features):
         altered.loc[ISSUE_START + pd.Timedelta(hours=1), "Functioning Day"] = "No"
         app.state.raw = altered
         assert client.post("/predict", json={"issued_at": ISSUE_START.isoformat()}).status_code == 200
+        altered.loc[ISSUE_START + pd.Timedelta(hours=1), "Rented Bike Count"] = 0
+        comparison = client.post("/predict", json={"issued_at": ISSUE_START.isoformat()}).json()
+        assert comparison["actual_rentals"] == 0
+        assert comparison["absolute_percentage_error"] is None
+        assert comparison["actual_operating"] is False
+        assert comparison["predicted_rentals"] == pytest.approx(
+            max(0, bundle["model"].predict(features.loc[
+                [ISSUE_START + pd.Timedelta(hours=1)], bundle["columns"]
+            ])[0])
+        )
         app.state.raw = original
         app.state.bundle = None
         assert client.get("/health").status_code == 503

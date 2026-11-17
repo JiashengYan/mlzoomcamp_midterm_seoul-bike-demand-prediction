@@ -1,5 +1,4 @@
 """Build rental-prediction inputs from known dates and completed observations."""
-from hashlib import sha256
 from pathlib import Path
 
 import numpy as np
@@ -32,17 +31,15 @@ def load_data(path=RAW_PATH):
     """Read the fixed CSV as a table indexed by the start of each observed hour.
 
     Inputs:
-        path: CSV file path; defaults to RAW_PATH. The file must match SOURCE_SHA256.
+        path: CSV file path; defaults to RAW_PATH. LF and CRLF are both supported.
 
     Outputs:
         A table (pandas DataFrame) with 8,760 rows, 13 columns, and a Seoul time index.
         Date and Hour together form the index; Date is then removed as a column. The CSV
-        still has 14 columns and is not changed. Raises ValueError for a different file
-        version or incomplete hourly sequence.
+        still has 14 columns and is not changed. Raises ValueError for an invalid schema
+        or incomplete hourly sequence.
     """
     path = Path(path)
-    if sha256(path.read_bytes()).hexdigest() != SOURCE_SHA256:
-        raise ValueError("CSV SHA256 differs from the documented dataset.")
     frame = pd.read_csv(path, encoding="latin-1")
     dates = pd.to_datetime(frame.pop("Date"), format="%d/%m/%Y")
     source_hour_starts = dates + pd.to_timedelta(frame["Hour"], unit="h")

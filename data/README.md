@@ -19,16 +19,18 @@ Updated: 2026-11-16.
 **The standard-library script verifies an existing file and downloads only when it is absent.** Run from the project root:
 
 ~~~powershell
-python scripts/download_data.py
+uv run --locked python scripts/download_data.py
 ~~~
 
-Destination: `data/raw/SeoulBikeData.csv`. The SHA-256 file fingerprint must be:
+Prepare the environment using [README section 4](../README.md#4-reproduce-the-experiment) first. These commands work on Windows and Ubuntu.
 
-~~~text
-373339b71a8935d69e9af0abf26a70744632119862eeb3919efb389a7b749c60
-~~~
-
-The script checks bytes and 8,760-by-14 dimensions before writing. A different local/upstream version raises an error and requires source-version review before replacement.
+Destination: `data/raw/SeoulBikeData.csv`. The downloader and runtime loader accept
+Windows CRLF and Unix LF line endings without SHA-256 verification or rewriting the
+file. The downloader checks 8,760-by-14 dimensions; the runtime loader checks the CSV
+schema and hourly timeline. Equivalent CSV formatting does not block startup.
+`.gitattributes` also disables Git line-ending conversion for tracked raw CSV files.
+Existing models remain usable without retraining. Historical model metadata may still
+include `source_sha256` for reference; it is not used to gate loading.
 
 ## 3. Read the rows and units
 

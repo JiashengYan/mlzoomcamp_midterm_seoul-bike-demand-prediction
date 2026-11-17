@@ -248,9 +248,13 @@ Notebook section 8.1 computes the comparison table, hour-by-hour wins, volume gr
 
 The final model trains on all development targets and stays fixed during test/service replay. Earlier test observations become historical inputs for later predictions after their hours finish. Every test issue therefore uses its own completed history. Metadata distinguishes last-label availability, simulated model availability, and actual artifact creation time.
 
-The API accepts exact timezone-aware issue hours from 2018-11-14 23:00 through 2018-11-30 22:00 Seoul time. It returns count, units, target interval, model ID, cutoffs, and the normal-operation assumption. Invalid requests/history yield 422, missing model 503. All responses use the normal-operation assumption. Commands and Docker instructions are in [README](../README.md).
+The API accepts exact timezone-aware issue hours from 2017-12-08 00:00 through 2018-11-30 22:00 Seoul time, covering every recorded target with enough input history. The formal held-out evaluation period remains unchanged. It returns count, units, target interval, model ID, cutoffs, and the normal-operation assumption. Invalid requests/history yield 422, missing model 503. All responses use the normal-operation assumption. Commands and Docker instructions are in [README](../README.md).
 
 ### 8.1 Request, response, and errors
+
+`/docs` provides a valid historical request example and describes the exact-hour requirement and available replay range. `/health` returns `issue_start` and `issue_end` from the loaded model. The API rejects out-of-range times rather than silently changing them.
+
+For direct historical comparison, `/predict` also returns `actual_rentals`, `absolute_error` (rentals/hour), `absolute_percentage_error` (percent; null for zero actual rentals), and `actual_operating`. Actuals come from the CSV's target-hour row after prediction and do not enter the model. Shutdown-hour comparisons fall outside the normal-operation performance evaluation.
 
 **POST /predict accepts a historical issue hour and returns the next target interval with its prediction and timing metadata.** The service obtains historical weather and rental counts from the fixed local CSV.
 
@@ -263,13 +267,13 @@ The API accepts exact timezone-aware issue hours from 2018-11-14 23:00 through 2
 | `history_available_through` | Observations completed through 17:00 |
 | `latest_source_hour_start` | Latest record starts at 16:00 and covers 16:00–17:00 |
 | `training_label_available_through` | End of the final hour whose actual count was used to train the saved model |
-| `simulated_model_available_at` | Earliest historical issue allowed for the saved model; distinct from its actual file creation time |
+| `simulated_model_available_at` | Simulated availability for formal evaluation; earlier times are allowed for interactive trials |
 
 | Endpoint or condition | Behavior |
 | --- | --- |
 | `GET /health` | Returns readiness and model ID |
 | `/docs` | Interactive API reference |
-| Accepted issue times | 2018-11-14 23:00 through 2018-11-30 22:00, Asia/Seoul |
+| Accepted issue times | 2017-12-08 00:00 through 2018-11-30 22:00, Asia/Seoul |
 | Invalid time, extra fields, or insufficient history | HTTP 422 with a reason |
 | No saved model | HTTP 503; train before prediction |
 
@@ -333,3 +337,5 @@ A new data version requires coordinated source-check and time-split updates befo
 An observed year, few rain/snow events, and correlated adjacent hours limit conclusions. The final test measures 16 days of November; future-season evaluation requires further periods. The optional cloud procedure is described in [Deployment](DEPLOYMENT.md).
 
 References retained for implementation context: [course requirements](https://github.com/DataTalksClub/machine-learning-zoomcamp/tree/main/projects), [lagged-feature example](https://scikit-learn.org/stable/auto_examples/applications/plot_time_series_lagged_features.html), [cyclical-time example](https://scikit-learn.org/stable/auto_examples/applications/plot_cyclical_feature_engineering.html), [time-series evaluation research](https://arxiv.org/abs/1905.11744).
+
+Interactive responses include `used_in_training` and `evaluation_scope` (`training`, `held_out_test`, or `outside_evaluation`). Training-period trials use the final saved model and do not represent what a model available at that historical date could have predicted. `/health` reports the broader trial range alongside `evaluation_issue_start` and `evaluation_issue_end`.
